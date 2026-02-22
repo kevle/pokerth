@@ -37,6 +37,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(Boost REQUIRED COMPONENTS iostreams random thread filesystem program_options)
 find_package(OpenSSL REQUIRED)
+find_package(FFMPEG REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Network)
 
 if(ANDROID)
@@ -70,6 +71,9 @@ protobuf_generate_cpp(PROTOBUF_GEN_SRC PROTOBUF_GEN_HDRS
 list(APPEND POKERTH_LIB_SRC ${PROTOBUF_GEN_SRC})
 
 find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Sql Xml WebSockets Qml Quick QuickControls2 Widgets Svg Network LinguistTools Multimedia REQUIRED)
+if(TARGET Qt6::Multimedia AND FFMPEG_LIBRARY_DIRS)
+    target_link_directories(Qt6::Multimedia INTERFACE ${FFMPEG_LIBRARY_DIRS})
+endif()
 
 # POKERTH.lib
 

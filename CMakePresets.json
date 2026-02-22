@@ -55,11 +55,20 @@
   ],
   "buildPresets": [
     {
+      "name": "parallel",
+      "hidden": true,
+      "environment": {
+        "CMAKE_BUILD_PARALLEL_LEVEL": "12"
+      }
+    },
+    {
       "name": "linux-debug",
+      "inherits": "parallel",
       "configurePreset": "linux-debug"
     },
     {
       "name": "linux-release",
+      "inherits": "parallel",
       "configurePreset": "linux-release"
     }
   ]

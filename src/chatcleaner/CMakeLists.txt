@@ -17,7 +17,7 @@ target_include_directories(pokerth_chatcleaner PUBLIC
 
 target_link_libraries(pokerth_chatcleaner PUBLIC pokerth_lib)
 target_link_libraries(pokerth_chatcleaner PUBLIC pokerth_protocol)
-target_link_libraries(pokerth_chatcleaner PUBLIC "${Protobuf_LIBRARIES}")
+target_link_libraries(pokerth_chatcleaner PUBLIC protobuf::libprotobuf)
 target_link_libraries(pokerth_chatcleaner PRIVATE Qt6::Xml Qt6::Network)
 
 install(TARGETS pokerth_chatcleaner DESTINATION bin OPTIONAL COMPONENT pokerth_chatcleaner)
