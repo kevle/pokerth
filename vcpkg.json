@@ -1,0 +1,51 @@
+{
+  "name": "pokerth",
+  "version-string": "1.0.0",
+  "dependencies": [
+    "boost-asio",
+    "boost-chrono",
+    "boost-date-time",
+    "boost-filesystem",
+    "boost-foreach",
+    "boost-interprocess",
+    "boost-lambda",
+    "boost-program-options",
+    "boost-random",
+    "boost-system",
+    "boost-thread",
+    "boost-uuid",
+    {
+      "name": "boost-iostreams",
+      "features": [
+        "bzip2",
+        "zlib"
+      ]
+    },
+    {
+      "name": "libsystemd",
+      "default-features": false
+    },
+    "openssl",
+    "protobuf",
+    "abseil",
+    "utf8-range",
+    {
+      "name": "qtbase",
+      "default-features": false,
+      "features": [
+        "sql",
+        "sql-sqlite",
+        "gui",
+        "freetype",
+        "xcb",
+        "openssl"
+      ]
+    },
+    "qtdeclarative",
+    "qtquickcontrols2",
+    "qtsvg",
+    "qtwebsockets",
+    "qttools",
+    "qtmultimedia"
+  ]
+}
