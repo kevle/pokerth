@@ -41,11 +41,25 @@
         "openssl"
       ]
     },
+    {
+      "name": "ffmpeg",
+      "default-features": false,
+      "features": [
+        "swresample",
+        "swscale"
+      ]
+    },
     "qtdeclarative",
     "qtquickcontrols2",
     "qtsvg",
     "qtwebsockets",
     "qttools",
-    "qtmultimedia"
+    {
+      "name": "qtmultimedia",
+      "features": [
+        "ffmpeg",
+        "widgets"
+      ]
+    }
   ]
 }
