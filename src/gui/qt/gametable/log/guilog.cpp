@@ -51,11 +51,13 @@ using namespace std;
 #define SQLITE_OK 0
 #define SQLITE_ERROR 1
 
+namespace {
+
 struct sqlite3 {
 	QString connName;
 };
 
-extern "C" int sqlite3_open(const char *filename, sqlite3 **ppDb)
+int sqlite3_open(const char *filename, sqlite3 **ppDb)
 {
 	if (!ppDb) return SQLITE_ERROR;
 	sqlite3 *p = new sqlite3();
@@ -75,7 +77,7 @@ extern "C" int sqlite3_open(const char *filename, sqlite3 **ppDb)
 	return SQLITE_OK;
 }
 
-extern "C" int sqlite3_get_table(sqlite3 *pDb, const char *zSql, char ***pazResult, int *pnRow, int *pnColumn, char **pErrMsg)
+int sqlite3_get_table(sqlite3 *pDb, const char *zSql, char ***pazResult, int *pnRow, int *pnColumn, char **pErrMsg)
 {
 	if(!pDb || !pazResult || !pnRow || !pnColumn) return SQLITE_ERROR;
 	QSqlDatabase db = QSqlDatabase::database(pDb->connName, false);
@@ -136,7 +138,7 @@ extern "C" int sqlite3_get_table(sqlite3 *pDb, const char *zSql, char ***pazResu
 	return SQLITE_OK;
 }
 
-extern "C" void sqlite3_free_table(char **result)
+void sqlite3_free_table(char **result)
 {
 	if(!result) return;
 	// find number of entries by walking until null
@@ -146,7 +148,7 @@ extern "C" void sqlite3_free_table(char **result)
 	free(result);
 }
 
-extern "C" int sqlite3_close(sqlite3 *pDb)
+int sqlite3_close(sqlite3 *pDb)
 {
 	if(!pDb) return SQLITE_ERROR;
 	// close and remove connection
@@ -164,6 +166,18 @@ extern "C" int sqlite3_close(sqlite3 *pDb)
 	delete pDb;
 	return SQLITE_OK;
 }
+
+void cleanUp(result_struct &results, sqlite3 *mySqliteLogDb)
+{
+	sqlite3_free_table(results.result_Session);
+	sqlite3_free_table(results.result_Game);
+	sqlite3_free_table(results.result_Hand);
+	sqlite3_free_table(results.result_Hand_ID);
+	sqlite3_free_table(results.result_Action);
+	sqlite3_close(mySqliteLogDb);
+}
+
+} // end anonymous namespace
 
 guiLog::guiLog(gameTableImpl* w, ConfigFile *c) : myW(w), myConfig(c), myLogDir(0), myHtmlLogFile(0), myHtmlLogFile_old(0), myTxtLogFile(0), tb(0)
 {
@@ -1687,17 +1701,6 @@ QList<int> guiLog::getGameList(QString fileStringPdb)
 
 	return gameList;
 
-}
-
-void guiLog::cleanUp(result_struct &results, sqlite3 *mySqliteLogDb)
-{
-
-	sqlite3_free_table(results.result_Session);
-	sqlite3_free_table(results.result_Game);
-	sqlite3_free_table(results.result_Hand);
-	sqlite3_free_table(results.result_Hand_ID);
-	sqlite3_free_table(results.result_Action);
-	sqlite3_close(mySqliteLogDb);
 }
 
 int guiLog::convertCardStringToInt(string val, string col)

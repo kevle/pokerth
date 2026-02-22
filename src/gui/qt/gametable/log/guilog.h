@@ -51,9 +51,6 @@ struct result_struct {
 	char **result_Action;
 };
 
-// forward declare sqlite3 opaque type used by legacy code in guilog.cpp
-struct sqlite3;
-
 class gameTableImpl;
 class GameTableStyleReader;
 
@@ -125,7 +122,6 @@ private:
 
 	void writeLogFileStream(std::string log_string, QFile *LogFile);
 	void writeLog(std::string log_string, int modus);
-	void cleanUp(result_struct &results, sqlite3 *mySqliteLogDb);
 	int convertCardStringToInt(std::string val, std::string col);
 	std::string convertCardIntToString(int code, int modus);
 
