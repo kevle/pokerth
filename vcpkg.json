@@ -37,9 +37,16 @@
         "sql-sqlite",
         "gui",
         "freetype",
-        "xcb",
         "openssl"
       ]
+    },
+    {
+      "name": "qtbase",
+      "default-features": false,
+      "features": [
+        "xcb"
+      ],
+      "platform": "linux"
     },
     {
       "name": "ffmpeg",

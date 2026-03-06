@@ -18,6 +18,18 @@
       }
     },
     {
+      "name": "emsdk-base",
+      "hidden": true,
+      "inherits": ["vcpkg-base"],
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "description": "Expects VCPKG_ROOT and EMSDK to be set in the environment.",
+      "cacheVariables": {
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+        "VCPKG_TARGET_TRIPLET": "wasm32-emscripten",
+        "VCPKG_HOST_TRIPLET": "x64-linux"
+      }
+    },
+    {
       "name": "linux-base",
       "hidden": true,
       "cacheVariables": {
@@ -51,6 +63,24 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
+    },
+    {
+      "name": "emsdk-debug",
+      "displayName": "Emscripten Debug",
+      "description": "Configure Emscripten Debug build with vcpkg toolchain.",
+      "inherits": "emsdk-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "emsdk-release",
+      "displayName": "Emscripten Release",
+      "description": "Configure Emscripten Release build with vcpkg toolchain.",
+      "inherits": "emsdk-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
     }
   ],
   "buildPresets": [
@@ -70,6 +100,16 @@
       "name": "linux-release",
       "inherits": "parallel",
       "configurePreset": "linux-release"
+    },
+    {
+      "name": "emsdk-debug",
+      "inherits": "parallel",
+      "configurePreset": "emsdk-debug"
+    },
+    {
+      "name": "emsdk-release",
+      "inherits": "parallel",
+      "configurePreset": "emsdk-release"
     }
   ]
 }

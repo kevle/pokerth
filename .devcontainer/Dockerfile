@@ -6,6 +6,7 @@ ARG USERNAME=pokerth
 ARG USER_UID=1000
 ARG USER_GID=${USER_UID}
 ARG GCC_TOOLSET=gcc-toolset-14
+ARG USE_EMSDK=1
 
 # toolchain + requirements for vcpkg built libraries only.
 RUN dnf -y install --enablerepo=devel autoconf-archive libtool && \
@@ -45,8 +46,10 @@ RUN dnf -y install \
         cmake \
         make \
         perl \
-        python38 \
-        shadow-utils && \
+        python39 \
+        shadow-utils \
+        bzip2 \
+        xz && \
     dnf clean all && \
     rm -rf /var/cache/dnf
 
@@ -67,14 +70,6 @@ RUN groupadd --gid "${USER_GID}" "${USERNAME}" && \
 RUN printf '%s\n' "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/${USERNAME}" && \
     chmod 0440 "/etc/sudoers.d/${USERNAME}"
 
-# Activate GCC 14 toolset for login and non-login shells.
-RUN printf '%s\n' \
-    "if [ -f /opt/rh/${GCC_TOOLSET}/enable ]; then" \
-    "  source /opt/rh/${GCC_TOOLSET}/enable" \
-    "fi" \
-    > "/etc/profile.d/${GCC_TOOLSET}.sh" && \
-    chmod 0644 "/etc/profile.d/${GCC_TOOLSET}.sh"
-
 # Install vcpkg
 ENV VCPKG_DISABLE_METRICS="1"
 ENV VCPKG_ROOT="/opt/vcpkg"
@@ -82,10 +77,42 @@ RUN git clone https://github.com/microsoft/vcpkg.git "${VCPKG_ROOT}" && \
     "${VCPKG_ROOT}/bootstrap-vcpkg.sh" -disableMetrics
 RUN chown -R "${USERNAME}:${USERNAME}" "${VCPKG_ROOT}"
 
+# Optionally install emscripten ( which requires at least Python 3.10, so we also use micromamba to get it... )
+ENV EMSDK="/opt/emsdk"
+ENV MAMBA_ROOT_PREFIX="/opt/micromamba"
+ENV EMSDK_PYTHON="/opt/micromamba/envs/emsdk-py/bin/python"
+RUN if [ "${USE_EMSDK}" = "1" ]; then \
+      curl -fsSL https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C /tmp bin/micromamba && \
+      install -Dm755 /tmp/bin/micromamba /usr/local/bin/micromamba && \
+      rm -rf /tmp/bin && \
+      micromamba create -y -n emsdk-py -c conda-forge python=3.11 && \
+      micromamba clean --all --yes; \
+    fi
+RUN if [ "${USE_EMSDK}" = "1" ]; then \
+      git clone --depth 1 https://github.com/emscripten-core/emsdk.git "${EMSDK}" && \
+      EMSDK_PYTHON="${EMSDK_PYTHON}" "${EMSDK}/emsdk" install latest && \
+      EMSDK_PYTHON="${EMSDK_PYTHON}" "${EMSDK}/emsdk" activate latest --embedded; \
+    fi
+RUN printf '%s\n' \
+    "if [ -f /opt/rh/${GCC_TOOLSET}/enable ]; then" \
+    "  source /opt/rh/${GCC_TOOLSET}/enable" \
+    "fi" \
+    "if [ -f ${EMSDK}/emsdk_env.sh ]; then" \
+    "  if [ -x ${EMSDK_PYTHON} ]; then" \
+    "    export EMSDK_PYTHON=${EMSDK_PYTHON}" \
+    "  fi" \
+    "  source ${EMSDK}/emsdk_env.sh >/dev/null" \
+    "  if [ -x ${EMSDK_PYTHON} ]; then" \
+    "    export EMSDK_PYTHON=${EMSDK_PYTHON}" \
+    "  fi" \
+    "fi" \
+    > /etc/profile.d/toolchain.sh && \
+    chmod 0644 /etc/profile.d/toolchain.sh
+
 # Keep toolchain available even for commands that do not source shell profiles.
 ENV PATH="/opt/rh/${GCC_TOOLSET}/root/usr/bin:${PATH}"
-ENV BASH_ENV="/etc/profile.d/${GCC_TOOLSET}.sh"
-ENV ENV="/etc/profile.d/${GCC_TOOLSET}.sh"
+ENV BASH_ENV="/etc/profile.d/toolchain.sh"
+ENV ENV="/etc/profile.d/toolchain.sh"
 ENV CC="gcc"
 ENV CXX="g++"
 
