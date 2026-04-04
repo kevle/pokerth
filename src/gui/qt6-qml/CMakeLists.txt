@@ -60,13 +60,14 @@ qt_add_translations(pokerth_qml-client
     RESOURCE_PREFIX "/i18n"
 )
 
-# Für Android muss qt_add_executable mit MANUAL_FINALIZATION verwendet werden
+# Android requires MANUAL_FINALIZATION; all other platforms use standard qt_add_executable
+# which triggers qt_finalize_target (adds embind, WASM link options, etc.)
 if(ANDROID)
     qt_add_executable(pokerth_qml-client MANUAL_FINALIZATION ${POKERTH_QML_CLIENT_SRC})
     target_include_directories(pokerth_qml-client PRIVATE "${Protobuf_INCLUDE_DIR}")
     target_link_libraries(pokerth_qml-client PUBLIC "${Protobuf_LIBRARIES}")
 else()
-    add_executable(pokerth_qml-client ${POKERTH_QML_CLIENT_SRC})
+    qt_add_executable(pokerth_qml-client ${POKERTH_QML_CLIENT_SRC})
 endif()
 
 target_include_directories(pokerth_qml-client PUBLIC
@@ -110,12 +111,19 @@ if(ANDROID)
 endif()
 
 target_link_libraries(pokerth_qml-client PUBLIC pokerth_lib)
-target_link_libraries(pokerth_qml-client PUBLIC pokerth_db)
+if(NOT EMSCRIPTEN)
+    target_link_libraries(pokerth_qml-client PUBLIC pokerth_db)
+endif()
 
 target_link_libraries(pokerth_qml-client PUBLIC pokerth_protocol)
 target_link_libraries(pokerth_qml-client PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Sql Qt6::Xml Qt6::Svg Qt6::QuickControls2 Qt6::Widgets)
 
 target_compile_definitions(pokerth_qml-client PUBLIC QML_CLIENT)
+
+if(EMSCRIPTEN)
+    # Increase initial memory — the code+data segment exceeds the 16 MB default.
+    target_link_options(pokerth_qml-client PRIVATE "SHELL:-s INITIAL_MEMORY=64MB")
+endif()
 
 # Android: Konfiguriere und finalisiere Target
 if(ANDROID)

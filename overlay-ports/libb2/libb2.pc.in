@@ -1,0 +1,9 @@
+prefix=@prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libb2
+Description: C library providing BLAKE2b, BLAKE2s, BLAKE2bp, BLAKE2sp
+Version: 0.98.1
+Libs: -L${libdir} -lb2
+Cflags: -I${includedir}

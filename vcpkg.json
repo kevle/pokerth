@@ -23,7 +23,8 @@
     },
     {
       "name": "libsystemd",
-      "default-features": false
+      "default-features": false,
+      "platform": "linux"
     },
     "openssl",
     "protobuf",
@@ -49,6 +50,15 @@
       "platform": "linux"
     },
     {
+      "name": "qtbase",
+      "default-features": false,
+      "features": [
+        "gles2",
+        "opengl"
+      ],
+      "platform": "emscripten"
+    },
+    {
       "name": "ffmpeg",
       "default-features": false,
       "features": [
@@ -63,10 +73,18 @@
     "qttools",
     {
       "name": "qtmultimedia",
+      "default-features": false,
       "features": [
-        "ffmpeg",
         "widgets"
       ]
+    },
+    {
+      "name": "qtmultimedia",
+      "default-features": false,
+      "features": [
+        "ffmpeg"
+      ],
+      "platform": "!emscripten"
     }
   ]
 }

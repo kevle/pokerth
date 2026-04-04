@@ -182,7 +182,8 @@ target_compile_options(pokerth_lib PUBLIC -fexceptions -frtti)
 target_compile_definitions(pokerth_lib PUBLIC ENABLE_IPV6 HAVE_OPENSSL BOOST_FILESYSTEM_DEPRECATED)
 
 
-# POKERTH.dbofficial
+# POKERTH.dbofficial / POKERTH.db — server-only; not needed for WASM client
+if(NOT EMSCRIPTEN)
 
 file(GLOB POKERTH_DBOFFICIAL_SRC src/dbofficial/*.cpp)
 
@@ -202,10 +203,19 @@ add_library(pokerth_db "${POKERTH_DB_SRC}")
 target_include_directories(pokerth_db PRIVATE "${Boost_INCLUDE_DIRS}")
 target_include_directories(pokerth_db PUBLIC src/)
 
+endif() # NOT EMSCRIPTEN
+
 
 # POKERTH.protocol
 
 add_library(pokerth_protocol STATIC ${PROTOBUF_GEN_SRC})
+
+# Emscripten requires all objects linked into a -pthread binary to be compiled
+# with -pthread (-matomics -mbulk-memory). pokerth_protocol does not link against
+# Qt6 and therefore does not inherit the INTERFACE compile options from Qt6::Core.
+if(EMSCRIPTEN)
+    target_compile_options(pokerth_protocol PRIVATE -pthread)
+endif()
 
 message(STATUS "Protobuf include dir: ${Protobuf_INCLUDE_DIR}")
 
@@ -272,26 +282,30 @@ set_property(SOURCE src/third_party/protobuf/chatcleaner.pb.h PROPERTY SKIP_AUTO
 set_property(SOURCE src/third_party/protobuf/pokerth.pb.cc PROPERTY SKIP_AUTOGEN ON)
 set_property(SOURCE src/third_party/protobuf/pokerth.pb.h PROPERTY SKIP_AUTOGEN ON)
 
-add_subdirectory(src)
-add_subdirectory(src/chatcleaner)
-add_subdirectory(src/dbofficial)
-add_subdirectory(src/gui/qt)
+if(NOT EMSCRIPTEN)
+    add_subdirectory(src)
+    add_subdirectory(src/chatcleaner)
+    add_subdirectory(src/dbofficial)
+    add_subdirectory(src/gui/qt)
+endif()
 add_subdirectory(src/gui/qt6-qml)
 
-# zlib_compress utility tool for compressing serverlist
-add_executable(zlib_compress src/zlib_compress.cpp)
-target_link_libraries(zlib_compress 
-    PRIVATE 
-    Boost::filesystem 
-    Boost::iostreams
-)
+if(NOT EMSCRIPTEN)
+    # zlib_compress utility tool for compressing serverlist
+    add_executable(zlib_compress src/zlib_compress.cpp)
+    target_link_libraries(zlib_compress
+        PRIVATE
+        Boost::filesystem
+        Boost::iostreams
+    )
 
-# pokerth_bot - Headless bot client for automated testing
-add_executable(pokerth_bot src/pokerth_bot.cpp)
-target_link_libraries(pokerth_bot
-    PRIVATE
-    pokerth_lib
-    Boost::program_options
-)
-target_include_directories(pokerth_bot PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    # pokerth_bot - Headless bot client for automated testing
+    add_executable(pokerth_bot src/pokerth_bot.cpp)
+    target_link_libraries(pokerth_bot
+        PRIVATE
+        pokerth_lib
+        Boost::program_options
+    )
+    target_include_directories(pokerth_bot PRIVATE ${CMAKE_SOURCE_DIR}/src)
+endif()
 

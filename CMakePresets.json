@@ -12,9 +12,14 @@
       "binaryDir": "${sourceDir}/build/${presetName}",
       "description": "Expects VCPKG_ROOT to be set in the environment.",
       "generator": "Ninja",
+      "environment": {
+        "VCPKG_BINARY_SOURCES": "clear;files,/home/pokerth/.vcpkg/archives,readwrite"
+      },
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/overlay-ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/overlay-triplets"
       }
     },
     {
@@ -23,8 +28,11 @@
       "inherits": ["vcpkg-base"],
       "binaryDir": "${sourceDir}/build/${presetName}",
       "description": "Expects VCPKG_ROOT and EMSDK to be set in the environment.",
+      "environment": {
+        "EMSDK_PYTHON": "/opt/micromamba/envs/emsdk-py/bin/python"
+      },
       "cacheVariables": {
-        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/EmscriptenWrapper.cmake",
         "VCPKG_TARGET_TRIPLET": "wasm32-emscripten",
         "VCPKG_HOST_TRIPLET": "x64-linux"
       }
