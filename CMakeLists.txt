@@ -150,6 +150,10 @@ else()
     list(APPEND POKERTH_LIB_SRC "src/engine/local_engine/tools.cpp")
 endif()
 
+if(EMSCRIPTEN)
+    list(APPEND POKERTH_LIB_SRC src/net/clientwssendbuffer.cpp)
+endif()
+
 add_library(pokerth_lib STATIC ${POKERTH_LIB_SRC})
 
 # Füge Include-Pfad für generierte Protobuf-Header hinzu
@@ -178,6 +182,9 @@ endif()
 target_link_libraries(pokerth_lib PUBLIC Qt6::Network)
 target_link_libraries(pokerth_lib PUBLIC pokerth_protocol)
 target_link_libraries(pokerth_lib PRIVATE Qt6::Xml Qt6::Sql)
+if(EMSCRIPTEN)
+    target_link_libraries(pokerth_lib PUBLIC Qt6::WebSockets)
+endif()
 target_compile_options(pokerth_lib PUBLIC -fexceptions -frtti)
 target_compile_definitions(pokerth_lib PUBLIC ENABLE_IPV6 HAVE_OPENSSL BOOST_FILESYSTEM_DEPRECATED)
 

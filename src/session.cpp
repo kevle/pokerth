@@ -205,7 +205,11 @@ void Session::startInternetClient()
 		myConfig->readConfigString("MyName"),
 		myConfig->readConfigString("MyAvatar"),
 		myQtToolsInterface->stringFromUtf8(myConfig->readConfigString("CacheDir")));
+#ifdef __EMSCRIPTEN__
+	myNetClient->StartWasm();
+#else
 	myNetClient->Run();
+#endif
 }
 
 void Session::startNetworkClient(const string &serverAddress, unsigned serverPort, bool ipv6, bool sctp)

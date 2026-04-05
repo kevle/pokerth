@@ -52,6 +52,9 @@ typedef unsigned SessionId;
 
 struct Gsasl;
 struct Gsasl_session;
+#ifdef __EMSCRIPTEN__
+class QWebSocket;
+#endif
 struct WebSocketData;
 class ReceiveBuffer;
 class SendBuffer;
@@ -67,6 +70,11 @@ public:
 	SessionData(boost::shared_ptr<boost::asio::ip::tcp::socket> sock, SessionId id, SessionDataCallback &cb, boost::asio::io_context &ioService);
 	SessionData(boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket>> sslStream, SessionId id, SessionDataCallback &cb, boost::asio::io_context &ioService, int filler);
 	SessionData(boost::shared_ptr<WebSocketData> webData, SessionId id, SessionDataCallback &cb, boost::asio::io_context &ioService, int filler);
+#ifdef __EMSCRIPTEN__
+	// Client-side WebSocket session (WASM): receive via WebReceiveBuffer::HandleMessage,
+	// send via ClientWsSendBuffer (raw protobuf, no length header).
+	SessionData(QWebSocket *ws, SessionId id, SessionDataCallback &cb, boost::asio::io_context &ioService);
+#endif
 	~SessionData();
 
 	SessionId GetId() const;

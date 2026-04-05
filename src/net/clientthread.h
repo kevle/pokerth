@@ -59,6 +59,10 @@ class AvatarManager;
 class Log;
 class QtToolsInterface;
 struct Gsasl;
+#ifdef __EMSCRIPTEN__
+class QWebSocket;
+class QTimer;
+#endif
 
 #define SIZE_PING_BACKLOG		20
 
@@ -111,6 +115,12 @@ public:
 	// Set the parameters. Does not do any error checking.
 	// Error checking will be done during connect
 	// (i.e. after starting the thread).
+#ifdef __EMSCRIPTEN__
+	// WASM alternative to Thread::Run(): sets up a QWebSocket on the Qt main
+	// thread and drives ASIO timers via a QTimer.  Returns immediately; all
+	// network events are delivered through Qt's event loop.
+	void StartWasm();
+#endif
 	void Init(
 		const std::string &serverAddress,
 		const std::string &serverListUrl,
@@ -360,6 +370,12 @@ private:
 
 	boost::asio::steady_timer m_stateTimer;
 	boost::asio::steady_timer m_avatarTimer;
+
+#ifdef __EMSCRIPTEN__
+	QWebSocket *m_webSocket = nullptr;
+	QTimer     *m_ioTimer   = nullptr;
+	void WasmCleanup();
+#endif
 
 	friend class AbstractClientStateReceiving;
 	friend class ClientStateInit;

@@ -52,6 +52,11 @@
 #include <boost/foreach.hpp>
 #include <boost/filesystem.hpp>
 #include <QDebug>
+#ifdef __EMSCRIPTEN__
+#include <QWebSocket>
+#include <QTimer>
+#include <net/clientexception.h>
+#endif
 #include <sstream>
 #include <fstream>
 #include <memory>
@@ -88,6 +93,9 @@ ClientThread::ClientThread(GuiInterface &gui, AvatarManager &avatarManager, Log 
 
 ClientThread::~ClientThread()
 {
+#ifdef __EMSCRIPTEN__
+	WasmCleanup();
+#endif
 }
 
 void
@@ -443,7 +451,14 @@ ClientThread::StartAsyncRead()
 void
 ClientThread::CloseSession(boost::shared_ptr<SessionData> /*session*/)
 {
+#ifdef __EMSCRIPTEN__
+	// In WASM there is no io_service::run() to unwind via exception.
+	// Disconnect is handled by the QWebSocket signal handlers in StartWasm().
+	// This method is only reached from clientstate.cpp cleanup paths that
+	// already wrap the call in try/catch, so a no-op is correct here.
+#else
 	throw NetException(__FILE__, __LINE__, ERR_SOCK_CONN_RESET, 0);
+#endif
 }
 
 void
@@ -633,6 +648,125 @@ ClientThread::Main()
 
 	ClearAuthContext();
 }
+
+#ifdef __EMSCRIPTEN__
+void
+ClientThread::WasmCleanup()
+{
+	if (m_ioTimer) {
+		m_ioTimer->stop();
+		delete m_ioTimer;
+		m_ioTimer = nullptr;
+	}
+	if (m_webSocket) {
+		m_webSocket->close();
+		delete m_webSocket;
+		m_webSocket = nullptr;
+	}
+	if (m_avatarDownloader) {
+		m_avatarDownloader->SignalTermination();
+		m_avatarDownloader->Join(DOWNLOADER_THREAD_TERMINATE_TIMEOUT);
+	}
+	ClearAuthContext();
+}
+
+void
+ClientThread::StartWasm()
+{
+	InitAuthContext();
+
+	m_avatarDownloader.reset(new DownloaderThread);
+	m_avatarDownloader->Run();
+
+	// Build WebSocket URL from the parameters set by Init().
+	ClientContext &ctx = GetContext();
+	QString url = QString("ws://%1:%2/")
+		.arg(QString::fromStdString(ctx.GetServerAddr()))
+		.arg(ctx.GetServerPort());
+
+	// Create the WASM session: WebReceiveBuffer (push-based) + ClientWsSendBuffer.
+	m_webSocket = new QWebSocket(QStringLiteral("PokerTH"));
+	boost::shared_ptr<SessionData> session(
+		new SessionData(m_webSocket, SESSION_ID_GENERIC, *this, *m_ioService));
+	ctx.SetSessionData(session);
+
+	// Poll the ASIO io_context from the Qt event loop so that ASIO steady_timers
+	// used by the state machine (connect timeouts, session timeouts, etc.) fire.
+	m_ioTimer = new QTimer;
+	QObject::connect(m_ioTimer, &QTimer::timeout, [this]() {
+		m_ioService->poll();
+	});
+	m_ioTimer->start(10);
+
+	// Register ASIO timers (avatar downloads etc.) — must happen after m_ioTimer
+	// is started so that poll() will actually run them.
+	RegisterTimers();
+
+	// Signal the GUI: init done.
+	GetCallback().SignalNetClientConnect(MSG_SOCK_INIT_DONE);
+
+	// Keep ClientThread alive inside lambdas via a weak_ptr; if the object has
+	// been destroyed we simply skip the handler.
+	boost::weak_ptr<ClientThread> weak = shared_from_this();
+
+	QObject::connect(m_webSocket, &QWebSocket::connected, [weak]() {
+		auto self = weak.lock();
+		if (!self) return;
+		boost::asio::post(*self->m_ioService, [weak]() {
+			auto s = weak.lock();
+			if (!s) return;
+			s->GetCallback().SignalNetClientConnect(MSG_SOCK_RESOLVE_DONE);
+			s->GetCallback().SignalNetClientConnect(MSG_SOCK_CONNECT_DONE);
+			s->SetState(ClientStateStartSession::Instance());
+		});
+	});
+
+	QObject::connect(m_webSocket, &QWebSocket::binaryMessageReceived,
+		[weak](const QByteArray &data) {
+			auto self = weak.lock();
+			if (!self) return;
+			boost::asio::post(*self->m_ioService, [weak, data]() {
+				auto s = weak.lock();
+				if (!s) return;
+				auto session = s->GetContext().GetSessionData();
+				if (!session || session->GetState() == SessionData::Closed)
+					return;
+				try {
+					session->GetReceiveBuffer().HandleMessage(session, data.toStdString());
+				} catch (const PokerTHException &e) {
+					if (s->m_clientLog) s->m_clientLog->flushLog();
+					s->GetCallback().SignalNetClientError(e.GetErrorId(), e.GetOsErrorCode());
+					s->WasmCleanup();
+				}
+			});
+		});
+
+	QObject::connect(m_webSocket, &QWebSocket::disconnected, [weak]() {
+		auto self = weak.lock();
+		if (!self) return;
+		boost::asio::post(*self->m_ioService, [weak]() {
+			auto s = weak.lock();
+			if (!s) return;
+			s->GetCallback().SignalNetClientError(ERR_SOCK_CONN_RESET, 0);
+			s->WasmCleanup();
+		});
+	});
+
+	QObject::connect(m_webSocket, &QWebSocket::errorOccurred,
+		[weak](QAbstractSocket::SocketError) {
+			auto self = weak.lock();
+			if (!self) return;
+			boost::asio::post(*self->m_ioService, [weak]() {
+				auto s = weak.lock();
+				if (!s) return;
+				s->GetCallback().SignalNetClientError(ERR_SOCK_CONNECT_FAILED, 0);
+				s->WasmCleanup();
+			});
+		});
+
+	m_webSocket->open(QUrl(url));
+}
+#endif // __EMSCRIPTEN__
 
 void
 ClientThread::RegisterTimers()

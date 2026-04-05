@@ -38,6 +38,9 @@
 #include <net/websocketdata.h>
 #include <core/loghelper.h>
 #include <boost/asio/ssl.hpp>
+#ifdef __EMSCRIPTEN__
+#include <net/clientwssendbuffer.h>
+#endif
 
 using namespace std;
 using boost::asio::ip::tcp;
@@ -77,6 +80,19 @@ SessionData::SessionData(boost::shared_ptr<boost::asio::ssl::stream<boost::asio:
     m_receiveBuffer.reset(new AsioReceiveBuffer);
     m_sendBuffer.reset(new AsioSendBuffer);
 }
+
+#ifdef __EMSCRIPTEN__
+SessionData::SessionData(QWebSocket *ws, SessionId id, SessionDataCallback &cb, boost::asio::io_context &ioService)
+	: m_socket(), m_webData(), m_id(id), m_state(SessionData::Init), m_clientAddr(),
+	  m_receiveBuffer(), m_sendBuffer(), m_readyFlag(false), m_wantsLobbyMsg(true),
+	  m_activityTimeoutSec(0), m_activityWarningRemainingSec(0), m_globalTimeoutSec(0),
+	  m_initTimeoutTimer(ioService), m_globalTimeoutTimer(ioService),
+	  m_activityTimeoutTimer(ioService), m_callback(cb), m_authSession(NULL), m_curAuthStep(0)
+{
+	m_receiveBuffer.reset(new WebReceiveBuffer);
+	m_sendBuffer.reset(new ClientWsSendBuffer(ws));
+}
+#endif
 
 SessionData::~SessionData()
 {
