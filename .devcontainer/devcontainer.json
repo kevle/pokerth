@@ -17,6 +17,7 @@
       ]
     }
   },
+  "forwardPorts": [8000],
   "containerUser": "pokerth",
   "remoteUser": "pokerth",
   "updateRemoteUserUID": true

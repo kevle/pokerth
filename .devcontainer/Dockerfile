@@ -25,7 +25,12 @@ RUN dnf -y install \
         libxkbcommon-devel \
         libxkbcommon-x11-devel \
         libXext-devel \
-        libXrandr-devel
+        libXrandr-devel \
+        libglvnd-glx \
+        libglvnd-devel \
+        mesa-libGL-devel \
+        libSM \
+        libICE
 RUN dnf -y install \
         "${GCC_TOOLSET}" \
         mold \
