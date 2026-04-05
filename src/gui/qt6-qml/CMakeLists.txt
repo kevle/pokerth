@@ -123,6 +123,27 @@ target_compile_definitions(pokerth_qml-client PUBLIC QML_CLIENT)
 if(EMSCRIPTEN)
     # Increase initial memory — the code+data segment exceeds the 16 MB default.
     target_link_options(pokerth_qml-client PRIVATE "SHELL:-s INITIAL_MEMORY=64MB")
+
+    # Source maps for Debug builds: embeds C++ source locations into a .wasm.map
+    # file so Chrome/Firefox DevTools can show step-through C++ debugging without
+    # needing DWARF or a separate extension. Requires the .wasm.map to be served
+    # alongside the .wasm from the same base URL.
+    target_compile_options(pokerth_qml-client PRIVATE
+        $<$<CONFIG:Debug>:-gsource-map -O0>)
+    target_link_options(pokerth_qml-client PRIVATE
+        $<$<CONFIG:Debug>:SHELL:-gsource-map --source-map-base http://localhost:8000/>)
+
+    # Embed a qt.conf at :/qt/etc/qt.conf so Qt's findConfiguration() finds it
+    # before calling getRelocatablePrefix(). In a static WASM build, the QT_STATIC
+    # branch of getRelocatablePrefix() calls applicationDirPath(), which requires
+    # argv[0] to resolve to a real file — impossible in WASM. Providing Prefix=/
+    # via qt.conf makes Qt skip that code path entirely.
+    set_source_files_properties(wasm_qt.conf PROPERTIES QT_RESOURCE_ALIAS "qt.conf")
+    qt_add_resources(pokerth_qml-client "wasm_qt_conf"
+        PREFIX "/qt/etc"
+        FILES wasm_qt.conf
+        BASE "${CMAKE_CURRENT_SOURCE_DIR}"
+    )
 endif()
 
 # Android: Konfiguriere und finalisiere Target
