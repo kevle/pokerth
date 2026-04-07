@@ -185,7 +185,11 @@ target_link_libraries(pokerth_lib PRIVATE Qt6::Xml Qt6::Sql)
 if(EMSCRIPTEN)
     target_link_libraries(pokerth_lib PUBLIC Qt6::WebSockets)
 endif()
-target_compile_options(pokerth_lib PUBLIC -fexceptions -frtti)
+if(EMSCRIPTEN)
+    target_compile_options(pokerth_lib PUBLIC -fwasm-exceptions -frtti)
+else()
+    target_compile_options(pokerth_lib PUBLIC -fexceptions -frtti)
+endif()
 target_compile_definitions(pokerth_lib PUBLIC ENABLE_IPV6 HAVE_OPENSSL BOOST_FILESYSTEM_DEPRECATED)
 
 

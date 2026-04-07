@@ -31,8 +31,13 @@ set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/../cmake/Emscripte
 # Apply these flags to every dependency built for wasm32-emscripten so that
 # object files from protobuf, abseil, etc. are compatible with the shared-memory
 # wasm binary produced by qt_add_executable.
-set(VCPKG_C_FLAGS "-matomics -mbulk-memory")
-set(VCPKG_CXX_FLAGS "-matomics -mbulk-memory")
+# -fwasm-exceptions: native WebAssembly exception handling (required by Qt 6 WASM).
+# -s SUPPORT_LONGJMP=wasm: C libraries that use setjmp/longjmp (e.g. protobuf's upb)
+#   normally emit calls to emscripten_longjmp (the JS-based implementation). When
+#   -fwasm-exceptions is active the linker no longer provides that symbol, so we
+#   must also compile C code with SUPPORT_LONGJMP=wasm to use the WASM-native path.
+set(VCPKG_C_FLAGS "-matomics -mbulk-memory -s SUPPORT_LONGJMP=wasm")
+set(VCPKG_CXX_FLAGS "-matomics -mbulk-memory -fwasm-exceptions -s SUPPORT_LONGJMP=wasm")
 
 # Qt's cross-compile debug tools write absolute host paths into target_qt.conf
 # (HostPrefix / HostData pointing back into vcpkg_installed and buildtrees).

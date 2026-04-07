@@ -124,6 +124,12 @@ if(EMSCRIPTEN)
     # Increase initial memory — the code+data segment exceeds the 16 MB default.
     target_link_options(pokerth_qml-client PRIVATE "SHELL:-s INITIAL_MEMORY=64MB")
 
+    # Use native WebAssembly exception handling. All dependencies (including Qt)
+    # must also be compiled with -fwasm-exceptions — enforced via VCPKG_CXX_FLAGS
+    # in the overlay-triplet.
+    target_compile_options(pokerth_qml-client PRIVATE -fwasm-exceptions "SHELL:-s SUPPORT_LONGJMP=wasm")
+    target_link_options(pokerth_qml-client PRIVATE -fwasm-exceptions "SHELL:-s SUPPORT_LONGJMP=wasm")
+
     # Source maps for Debug builds: embeds C++ source locations into a .wasm.map
     # file so Chrome/Firefox DevTools can show step-through C++ debugging without
     # needing DWARF or a separate extension. Requires the .wasm.map to be served
