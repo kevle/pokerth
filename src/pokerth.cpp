@@ -129,17 +129,30 @@ int main(int argc, char *argv[])
         qWarning() << "Exception during session init:" << e.what();
     }
 
-    QQmlApplicationEngine engine;
+    // On WASM without asyncify, QEventDispatcherWasm calls
+    // emscripten_set_main_loop(simulateInfiniteLoop=true) which throws a JS
+    // exception to unwind the C++ stack while keeping the app alive via a
+    // registered browser callback.  A stack-allocated QQmlApplicationEngine
+    // would be destroyed during that unwind while QQmlTypeLoaderThread is still
+    // running, triggering a fatal assert.  Heap-allocate so the engine survives
+    // the stack unwind.  On WASM we intentionally skip deletion at the end of
+    // main — the browser/OS reclaims memory when the tab closes.  On all other
+    // platforms we delete it normally.
+    QQmlApplicationEngine *engine = new QQmlApplicationEngine;
+    // Also heap-allocate QObjects that are registered as QML context properties,
+    // since QML may hold references to them beyond the stack unwind.
+    SettingsManager *settingsMgr = new SettingsManager(myConfig);
+    LanguageManager *langMgr = new LanguageManager(engine);
+    engine->rootContext()->setContextProperty("SettingsManager", settingsMgr);
+    engine->rootContext()->setContextProperty("LanguageManager", langMgr);
+    engine->rootContext()->setContextProperty("ServerConnection", connectionHandler);
+    engine->rootContext()->setContextProperty("Lobby", lobbyHandler);
+    engine->load(QUrl(QStringLiteral("qrc:/pokerth.qml")));
 
-    SettingsManager settingsMgr(myConfig);
-    LanguageManager langMgr(&engine);
-    engine.rootContext()->setContextProperty("SettingsManager", &settingsMgr);
-    engine.rootContext()->setContextProperty("LanguageManager", &langMgr);
-    engine.rootContext()->setContextProperty("ServerConnection", connectionHandler);
-    engine.rootContext()->setContextProperty("Lobby", lobbyHandler);
-	engine.load(QUrl(QStringLiteral("qrc:/pokerth.qml")));
-
-	if (engine.rootObjects().isEmpty()) {
+    if (engine->rootObjects().isEmpty()) {
+        delete langMgr;
+        delete settingsMgr;
+        delete engine;
         delete lobbyHandler;
         delete connectionHandler;
         delete guiInterface;
@@ -147,17 +160,35 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    int result = app.exec();
-    
-    // Cleanup
+    // On WASM, app.exec() unwinds via a non-C++ JS exception ("SimulateInfiniteLoop").
+    // With -fwasm-exceptions that exception is now catchable by catch(...) — so we
+    // must NOT swallow it.  Any C++ exception (std::exception subclass) that escapes
+    // app.exec() is a bug worth logging, but everything else must be rethrown so the
+    // WASM stack-unwind mechanism can complete normally.
+    int result = 0;
+    try {
+        result = app.exec();
+    } catch (const std::exception &e) {
+        qCritical() << "Unhandled exception from app.exec():" << e.what();
+    }
+
+    // On WASM, emscripten_set_main_loop(simulateInfiniteLoop=true) unwinds the
+    // C++ stack via a JS exception — so we never reach here during normal
+    // operation. Skip deleting heap-allocated Qt objects to avoid destroying
+    // them while background threads are still active.
+#ifndef __EMSCRIPTEN__
     if (session) {
         session->terminateNetworkClient();
     }
+    delete langMgr;
+    delete settingsMgr;
+    delete engine;
     delete lobbyHandler;
     delete connectionHandler;
     delete guiInterface;
     delete log;
-    
+#endif
+
     return result;
 }
 

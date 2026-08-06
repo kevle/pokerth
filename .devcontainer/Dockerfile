@@ -106,7 +106,7 @@ RUN printf '%s\n' \
     "  if [ -x ${EMSDK_PYTHON} ]; then" \
     "    export EMSDK_PYTHON=${EMSDK_PYTHON}" \
     "  fi" \
-    "  source ${EMSDK}/emsdk_env.sh >/dev/null" \
+    "  source ${EMSDK}/emsdk_env.sh >/dev/null 2>&1" \
     "  if [ -x ${EMSDK_PYTHON} ]; then" \
     "    export EMSDK_PYTHON=${EMSDK_PYTHON}" \
     "  fi" \

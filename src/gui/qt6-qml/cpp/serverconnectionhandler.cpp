@@ -64,9 +64,27 @@ void ServerConnectionHandler::connectToServer(const QString &username, const QSt
     // Terminate any existing network client before starting a new one
     boost::shared_ptr<Session> sess = m_session;
     sess->terminateNetworkClient();
-    
-    // Start the internet client connection (like the old GUI does)
-    sess->startInternetClient();
+
+    // Start the internet client connection (like the old GUI does).
+    // Wrap in try/catch: startInternetClient() calls StartWasm() which does
+    // synchronous work (boost::thread creation, QWebSocket setup) that can throw.
+    // Any unhandled exception here would propagate through the QML call into
+    // app.exec() and crash Qt with "exception thrown from an event handler".
+    try {
+        sess->startInternetClient();
+    } catch (const std::exception &e) {
+        m_isConnecting = false;
+        emit isConnectingChanged(false);
+        updateProgress(0, tr("Connection failed"));
+        emit connectionFailed(QString::fromUtf8(e.what()));
+        qWarning() << "ServerConnectionHandler: exception in startInternetClient:" << e.what();
+    } catch (...) {
+        m_isConnecting = false;
+        emit isConnectingChanged(false);
+        updateProgress(0, tr("Connection failed"));
+        emit connectionFailed(tr("Unknown error"));
+        qWarning() << "ServerConnectionHandler: unknown exception in startInternetClient";
+    }
 }
 
 void ServerConnectionHandler::cancelConnection()

@@ -694,7 +694,16 @@ ClientThread::StartWasm()
 	// used by the state machine (connect timeouts, session timeouts, etc.) fire.
 	m_ioTimer = new QTimer;
 	QObject::connect(m_ioTimer, &QTimer::timeout, [this]() {
-		m_ioService->poll();
+		try {
+			m_ioService->poll();
+		} catch (const PokerTHException &e) {
+			if (m_clientLog) m_clientLog->flushLog();
+			GetCallback().SignalNetClientError(e.GetErrorId(), e.GetOsErrorCode());
+			WasmCleanup();
+		} catch (...) {
+			GetCallback().SignalNetClientError(ERR_SOCK_CONNECT_FAILED, 0);
+			WasmCleanup();
+		}
 	});
 	m_ioTimer->start(10);
 

@@ -65,6 +65,11 @@ def make_handler(base_dir: Path, include_paths: dict[str, Path]):
         def end_headers(self):
             for name, value in WASM_HEADERS.items():
                 self.send_header(name, value)
+            # Emit SourceMap: header for .wasm files so DevTools picks up the
+            # source map even if it ignores the sourceMappingURL custom section.
+            if Path(self.path.split("?")[0]).suffix.lower() == ".wasm":
+                wasm_name = Path(self.path.split("?")[0]).name
+                self.send_header("SourceMap", f"http://localhost:{self.server.server_address[1]}/{wasm_name}.map")
             super().end_headers()
 
         def guess_type(self, path: str):
